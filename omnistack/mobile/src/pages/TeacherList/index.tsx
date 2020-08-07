@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Text, View } from "react-native";
 import PageHeader from "../../components/PageHeader";
 import TeacherItem, { Teacher } from "../../components/TeacherItem";
@@ -11,6 +11,8 @@ import {
 import { Feather } from "@expo/vector-icons";
 import styles from "./styles";
 import api from "../../services/api";
+import AsyncStorage from '@react-native-community/async-storage'
+import { useFocusEffect } from '@react-navigation/native';
 
 function TeacherList() {
   const [isfiltersVisible, setIsFiltersVisible] = useState(false);
@@ -18,13 +20,29 @@ function TeacherList() {
   const [subject, setSubject] = useState("");
   const [week_day, setWeekDay] = useState("");
   const [time, setTime] = useState("");
-  const [teachers, setTeachers] = useState([]);
+  const [teachers, setTeachers] = useState ([]);
+  const [favourites, setFavourites] = useState<Number[]>([])
+
+  function loadFavourites(){
+    AsyncStorage.getItem('favourites').then( response => {
+      if(response) {
+        const favouritedTeachers = JSON.parse(response)
+        const favouritedTeachersIds = favouritedTeachers.map((teacher : Teacher) => teacher.id)
+        setFavourites(favouritedTeachers)
+      }
+    })
+  }
+
+  useFocusEffect(()=> {
+    loadFavourites()
+  })
 
   function handleToggleFiltersVisible() {
     setIsFiltersVisible(!isfiltersVisible);
   }
 
   async function handleSubmit() {
+    loadFavourites()
     const response = await api.get("classes", {
       params: {
         subject,
@@ -32,6 +50,7 @@ function TeacherList() {
         time,
       },
     });
+    setIsFiltersVisible(false)
     setTeachers(response.data);
   }
 
@@ -63,7 +82,7 @@ function TeacherList() {
                   style={styles.input}
                   placeholder="Qual o dia?"
                   value={week_day}
-                  onChangeText={(text) => setWeekDay(week_day)}
+                  onChangeText={(text) => setWeekDay(text)}
                 />
               </View>
               <View style={styles.inputBlock}>
@@ -73,7 +92,7 @@ function TeacherList() {
                   style={styles.input}
                   placeholder="Qual o horario?"
                   value={time}
-                  onChangeText={(text) => setTime(time)}
+                  onChangeText={(text) => setTime(text)}
                 />
               </View>
             </View>
@@ -92,7 +111,9 @@ function TeacherList() {
         }}
       >
         {teachers.map((teacher: Teacher) => {
-          return <TeacherItem />;
+          return (
+              <TeacherItem key={teacher.id} teacher={teacher} favourited={favourites.includes(teacher.id)}/>
+            )
         })}
       </ScrollView>
     </View>
